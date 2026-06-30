@@ -51,38 +51,48 @@ $('btn-save-key').addEventListener('click', () => {
 });
 
 // ── ESTIMADOR LOCAL (sin internet) ────────────────────
+function parseDuration(texto) {
+  const t = texto.toLowerCase();
+  // Expresiones especiales primero
+  if (/hora y media|1[.,]5\s*h/.test(t)) return 1.5;
+  if (/media hora|30\s*min/.test(t)) return 0.5;
+  if (/dos horas?/.test(t)) return 2;
+  if (/tres horas?/.test(t)) return 3;
+  if (/una hora/.test(t) && !/y/.test(t)) return 1;
+  let h = 0;
+  const hm = t.match(/(\d+(?:[.,]\d+)?)\s*h(?:ora)?s?/);
+  const mm = t.match(/(\d+)\s*min(?:uto)?s?/);
+  if (hm) h += parseFloat(hm[1].replace(',', '.'));
+  if (mm) h += parseInt(mm[1]) / 60;
+  return h || 1;
+}
+
 function estimarLocal(texto, tipo) {
   const t = texto.toLowerCase();
-
-  // Extraer duración en horas
-  let horas = 0;
-  const mMatch = t.match(/(\d+)\s*(?:min|minuto)/);
-  const hMatch = t.match(/(\d+(?:[.,]\d+)?)\s*(?:h(?:ora)?s?\b)/);
-  if (mMatch) horas += parseInt(mMatch[1]) / 60;
-  if (hMatch) horas += parseFloat(hMatch[1].replace(',', '.'));
-  if (!horas) horas = 1;
+  const horas = parseDuration(t);
 
   if (tipo === 'ej') {
+    // kcal/hora para persona de ~86 kg, intensidad moderada
     const acts = [
-      { k: ['pádel','padel'], r: 550 },
-      { k: ['tenis','tennis'], r: 500 },
-      { k: ['fútbol','futbol','football'], r: 600 },
-      { k: ['correr','running','carrera'], r: 650 },
-      { k: ['bici','ciclismo','cycling'], r: 450 },
-      { k: ['nadar','natación','piscina','swim'], r: 550 },
-      { k: ['caminar','paseo','andar','walk'], r: 280 },
-      { k: ['gym','gimnasio','pesas','musculación'], r: 380 },
-      { k: ['yoga','pilates'], r: 200 },
-      { k: ['baloncesto','basket'], r: 550 },
-      { k: ['boxeo','kickboxing'], r: 650 },
-      { k: ['crossfit','hiit','funcional'], r: 600 },
-      { k: ['cinta','elíptica','eliptica'], r: 420 },
-      { k: ['escalada'], r: 500 },
+      { k: ['pádel','padel'], r: 480 },
+      { k: ['tenis','tennis'], r: 460 },
+      { k: ['fútbol','futbol','football'], r: 520 },
+      { k: ['correr','running','carrera'], r: 580 },
+      { k: ['bici','ciclismo','cycling'], r: 400 },
+      { k: ['nadar','natación','piscina','swim'], r: 480 },
+      { k: ['caminar','paseo','andar','walk'], r: 260 },
+      { k: ['gym','gimnasio','pesas','musculación'], r: 340 },
+      { k: ['yoga','pilates'], r: 180 },
+      { k: ['baloncesto','basket'], r: 500 },
+      { k: ['boxeo','kickboxing'], r: 560 },
+      { k: ['crossfit','hiit','funcional'], r: 540 },
+      { k: ['cinta','elíptica','eliptica'], r: 380 },
+      { k: ['escalada'], r: 440 },
     ];
     for (const a of acts) {
       if (a.k.some(k => t.includes(k))) return Math.round(a.r * horas);
     }
-    return Math.round(380 * horas);
+    return Math.round(340 * horas);
   } else {
     const foods = [
       { k: ['pizza'], c: 500 },
@@ -131,11 +141,11 @@ async function estimarCalorias(texto, tipo) {
   if (geminiKey) {
     try {
       const prompt = tipo === 'ej'
-        ? `Persona de 86 kg. Actividad: "${texto}". Calorías quemadas aproximadas. Responde SOLO con un número entero.`
-        : `Calorías totales de esta comida: "${texto}". Responde SOLO con un número entero.`;
+        ? `Persona sedentaria de 86 kg que hace deporte recreativo (no élite). Actividad realizada: "${texto}". Dame una estimación REALISTA y CONSERVADORA de calorías quemadas. Usa MET moderado. Responde SOLO con un número entero (sin texto, sin unidades). El resultado debe estar entre 100 y 1200.`
+        : `Estimación realista de calorías de esta ingesta: "${texto}". Porciones normales si no se especifica. Responde SOLO con un número entero entre 50 y 2000.`;
       const raw = await callGemini(prompt);
       const kcal = parseInt(raw.replace(/[^0-9]/g, ''));
-      if (!isNaN(kcal) && kcal > 0) return kcal;
+      if (!isNaN(kcal) && kcal > 50 && kcal < 3000) return kcal;
     } catch (_) { /* usa estimación local */ }
   }
   return estimarLocal(texto, tipo);
