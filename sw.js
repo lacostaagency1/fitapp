@@ -1,5 +1,5 @@
 const CACHE = 'fitapp-v1';
-const ASSETS = ['/', '/index.html', '/styles.css', '/app.js', '/data.js'];
+const ASSETS = ['/fitapp/', '/fitapp/index.html', '/fitapp/styles.css', '/fitapp/app.js', '/fitapp/data.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
