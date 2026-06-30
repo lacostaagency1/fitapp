@@ -50,6 +50,67 @@ $('btn-save-key').addEventListener('click', () => {
   toggleSettings(false);
 });
 
+// ── ESTIMADOR LOCAL (sin internet) ────────────────────
+function estimarLocal(texto, tipo) {
+  const t = texto.toLowerCase();
+
+  // Extraer duración en horas
+  let horas = 0;
+  const mMatch = t.match(/(\d+)\s*(?:min|minuto)/);
+  const hMatch = t.match(/(\d+(?:[.,]\d+)?)\s*(?:h(?:ora)?s?\b)/);
+  if (mMatch) horas += parseInt(mMatch[1]) / 60;
+  if (hMatch) horas += parseFloat(hMatch[1].replace(',', '.'));
+  if (!horas) horas = 1;
+
+  if (tipo === 'ej') {
+    const acts = [
+      { k: ['pádel','padel'], r: 550 },
+      { k: ['tenis','tennis'], r: 500 },
+      { k: ['fútbol','futbol','football'], r: 600 },
+      { k: ['correr','running','carrera'], r: 650 },
+      { k: ['bici','ciclismo','cycling'], r: 450 },
+      { k: ['nadar','natación','piscina','swim'], r: 550 },
+      { k: ['caminar','paseo','andar','walk'], r: 280 },
+      { k: ['gym','gimnasio','pesas','musculación'], r: 380 },
+      { k: ['yoga','pilates'], r: 200 },
+      { k: ['baloncesto','basket'], r: 550 },
+      { k: ['boxeo','kickboxing'], r: 650 },
+      { k: ['crossfit','hiit','funcional'], r: 600 },
+      { k: ['cinta','elíptica','eliptica'], r: 420 },
+      { k: ['escalada'], r: 500 },
+    ];
+    for (const a of acts) {
+      if (a.k.some(k => t.includes(k))) return Math.round(a.r * horas);
+    }
+    return Math.round(380 * horas);
+  } else {
+    const foods = [
+      { k: ['pizza'], c: 500 },
+      { k: ['hamburguesa','burger'], c: 500 },
+      { k: ['bocadillo','bocata','sandwich'], c: 380 },
+      { k: ['ensalada'], c: 150 },
+      { k: ['arroz'], c: 200 },
+      { k: ['pasta','macarrones','espagueti'], c: 350 },
+      { k: ['pechuga','pollo'], c: 250 },
+      { k: ['salmón','salmon','pescado'], c: 250 },
+      { k: ['huevos','huevo'], c: 160 },
+      { k: ['cerveza'], c: 150 },
+      { k: ['vino'], c: 120 },
+      { k: ['chocolate'], c: 200 },
+      { k: ['tarta','pastel'], c: 350 },
+      { k: ['patatas fritas','fritas'], c: 350 },
+      { k: ['fruta','manzana','plátano','naranja'], c: 80 },
+    ];
+    for (const f of foods) {
+      if (f.k.some(k => t.includes(k))) {
+        const n = t.match(/(\d+)\s*(?:porci|trozo|ración|vaso|copa|pieza|unidad)/);
+        return f.c * (n ? parseInt(n[1]) : 1);
+      }
+    }
+    return 400;
+  }
+}
+
 // ── GEMINI API (gratis) ────────────────────────────────
 async function callGemini(prompt) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
@@ -67,13 +128,17 @@ async function callGemini(prompt) {
 }
 
 async function estimarCalorias(texto, tipo) {
-  const prompt = tipo === 'ej'
-    ? `Eres un experto en deporte. Una persona de 86 kg ha realizado: "${texto}". ¿Cuántas calorías aproximadas ha quemado? Responde SOLO con un número entero, sin texto ni unidades.`
-    : `Eres un nutricionista. Estima las calorías totales de la siguiente ingesta: "${texto}". Responde SOLO con un número entero, sin texto ni unidades.`;
-  const raw = await callGemini(prompt);
-  const kcal = parseInt(raw.replace(/[^0-9]/g, ''));
-  if (isNaN(kcal) || kcal <= 0) throw new Error('La IA no pudo estimar las calorías');
-  return kcal;
+  if (geminiKey) {
+    try {
+      const prompt = tipo === 'ej'
+        ? `Persona de 86 kg. Actividad: "${texto}". Calorías quemadas aproximadas. Responde SOLO con un número entero.`
+        : `Calorías totales de esta comida: "${texto}". Responde SOLO con un número entero.`;
+      const raw = await callGemini(prompt);
+      const kcal = parseInt(raw.replace(/[^0-9]/g, ''));
+      if (!isNaN(kcal) && kcal > 0) return kcal;
+    } catch (_) { /* usa estimación local */ }
+  }
+  return estimarLocal(texto, tipo);
 }
 
 // ── REGISTRO LIBRE ─────────────────────────────────────
