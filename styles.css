@@ -169,14 +169,15 @@ nav button.active { color: var(--accent2); }
 .check-list { list-style: none; }
 .check-list li {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  align-items: center;
+  gap: 10px;
   padding: 12px 0;
   border-bottom: 1px solid rgba(255,255,255,.06);
   cursor: pointer;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
+.check-list li .item-text { flex: 1; min-width: 0; }
 .check-list li:last-child { border-bottom: none; }
 
 .check-list li .check {
@@ -515,6 +516,75 @@ nav button.active { color: var(--accent2); }
   font-size: 14px;
   cursor: pointer;
   margin-top: 8px;
+}
+
+/* ── Calorie balance card ── */
+.cal-balance-card {
+  background: var(--surface2);
+  border-radius: 12px;
+  padding: 14px 12px 12px;
+  margin-bottom: 6px;
+}
+.cal-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.cal-col {
+  flex: 1;
+  text-align: center;
+}
+.cal-lbl {
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+.cal-num {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+}
+.cal-num.green  { color: var(--green); }
+.cal-num.accent { color: var(--accent2); }
+.cal-op {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--muted);
+  flex-shrink: 0;
+  padding: 0 2px;
+  padding-top: 14px;
+}
+.cal-status-row {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 10px;
+  border-radius: 8px;
+  line-height: 1.4;
+}
+.cal-status-row.neutral { background: rgba(148,163,184,.1); color: var(--muted); }
+.cal-status-row.good    { background: rgba(34,197,94,.15); color: var(--green); }
+.cal-status-row.warn    { background: rgba(234,179,8,.15); color: var(--yellow); }
+.cal-status-row.bad     { background: rgba(239,68,68,.15); color: var(--red); }
+
+/* ── Kcal pill on list items ── */
+.kcal-pill {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--surface2);
+  border-radius: 20px;
+  padding: 3px 7px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  align-self: center;
+}
+.check-list li.checked .kcal-pill {
+  background: rgba(34,197,94,.15);
+  color: var(--green);
 }
 
 /* ── Empty state ── */

@@ -119,28 +119,34 @@ function renderHoy() {
 
   let ejHtml = '';
   plan.ejercicios.forEach((ej, i) => {
+    const kcalBadge = ej.kcal ? `<span class="kcal-pill">${ej.kcal} kcal</span>` : '';
     ejHtml += `<li class="${reg.ejercicios[i] ? 'checked' : ''}" data-type="ej" data-i="${i}">
       <div class="check"></div>
       <div class="item-text">
         <div class="name">${ej.nombre}</div>
         ${ej.detalle ? `<div class="detail">${ej.detalle}</div>` : ''}
       </div>
+      ${kcalBadge}
     </li>`;
   });
 
   let comHtml = '';
   plan.comidas.forEach((com, i) => {
+    const kcalBadge = com.kcal ? `<span class="kcal-pill">${com.kcal} kcal</span>` : '';
     comHtml += `<li class="${reg.comidas[i] ? 'checked' : ''}" data-type="com" data-i="${i}">
       <div class="check"></div>
       <div class="item-text">
         <div class="name">${com.momento}</div>
         <div class="detail">${com.desc}</div>
       </div>
+      ${kcalBadge}
     </li>`;
   });
 
   $('ej-list').innerHTML = ejHtml;
   $('com-list').innerHTML = comHtml;
+
+  updateCalBalance(plan, reg);
 
   document.querySelectorAll('[data-type="ej"]').forEach(li => {
     li.addEventListener('click', () => {
@@ -164,6 +170,33 @@ function renderHoy() {
   } else {
     btn.textContent = '✔ Marcar día como completado';
     btn.classList.remove('completed');
+  }
+}
+
+function updateCalBalance(plan, reg) {
+  const eaten  = plan.comidas.reduce((s, c, i)  => s + (reg.comidas[i]   && c.kcal  ? c.kcal  : 0), 0);
+  const burned = plan.ejercicios.reduce((s, e, i) => s + (reg.ejercicios[i] && e.kcal ? e.kcal : 0), 0);
+  const net    = eaten - burned;
+  const deficit = TDEE_ESTIMADO - net;
+  const hasData = eaten > 0 || burned > 0;
+
+  $('cal-eaten').textContent  = hasData ? eaten  + ' kcal' : '— kcal';
+  $('cal-burned').textContent = hasData ? burned + ' kcal' : '— kcal';
+  $('cal-net').textContent    = hasData ? net    + ' kcal' : '— kcal';
+
+  const statusEl = $('cal-status');
+  if (!hasData) {
+    statusEl.textContent = 'Marca comidas y ejercicios para ver tu balance';
+    statusEl.className = 'cal-status-row neutral';
+  } else if (deficit >= META_DEFICIT) {
+    statusEl.textContent = `✅ Déficit conseguido · ${deficit} kcal por debajo de mantenimiento`;
+    statusEl.className = 'cal-status-row good';
+  } else if (deficit > 0) {
+    statusEl.textContent = `⚠️ Déficit pequeño · solo ${deficit} kcal — haz más ejercicio`;
+    statusEl.className = 'cal-status-row warn';
+  } else {
+    statusEl.textContent = `❌ Sin déficit · has comido ${Math.abs(deficit)} kcal por encima del mantenimiento`;
+    statusEl.className = 'cal-status-row bad';
   }
 }
 
