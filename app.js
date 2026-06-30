@@ -237,6 +237,8 @@ function renderMiniCal() {
 }
 
 // ── HOY ────────────────────────────────────────────────
+let editingItem = null; // { tipo: 'ej'|'com', i: number }
+
 function renderHoy() {
   const dayName = DAYS_ES[today().getDay()];
   const plan = getPlan(dayName);
@@ -250,50 +252,62 @@ function renderHoy() {
     };
   }
   const reg = registro[k];
+  if (!reg.mods) reg.mods = {};
 
   $('plan-emoji').textContent = plan.emoji;
   $('plan-tipo').textContent = plan.tipo;
 
-  let ejHtml = '';
-  plan.ejercicios.forEach((ej, i) => {
-    const kcalBadge = ej.kcal ? `<span class="kcal-pill">${ej.kcal} kcal</span>` : '';
-    ejHtml += `<li class="${reg.ejercicios[i] ? 'checked' : ''}" data-type="ej" data-i="${i}">
+  function buildItem(tipo, orig, i, checked) {
+    const modKey = tipo + '_' + i;
+    const mod = reg.mods[modKey];
+    const nombre  = tipo === 'ej' ? orig.nombre : orig.momento;
+    const detalle = mod ? mod.texto : (tipo === 'ej' ? orig.detalle : orig.desc);
+    const kcal    = mod ? mod.kcal : orig.kcal;
+    const isEd    = editingItem?.tipo === tipo && editingItem?.i === i;
+    const preText = mod ? mod.texto : (tipo === 'ej'
+      ? (orig.nombre + (orig.detalle ? ' · ' + orig.detalle : ''))
+      : orig.desc);
+
+    if (isEd) {
+      return `<li class="editing-li" data-type="${tipo}" data-i="${i}">
+        <div class="edit-inline-wrap">
+          <div class="edit-inline-label">${escHtml(nombre)}</div>
+          <textarea class="ai-textarea" id="edit-ta" rows="2">${escHtml(preText)}</textarea>
+          <div class="edit-inline-btns">
+            <button class="btn-ai-calc btn-recalc" id="btn-save-edit">✨ Recalcular con IA</button>
+            <button class="btn-cancel btn-cancel-edit" id="btn-cancel-edit">Cancelar</button>
+          </div>
+        </div>
+      </li>`;
+    }
+
+    const kcalBadge = kcal ? `<span class="kcal-pill${mod ? ' mod' : ''}">${kcal} kcal</span>` : '';
+    return `<li class="${checked ? 'checked' : ''}" data-type="${tipo}" data-i="${i}">
       <div class="check"></div>
       <div class="item-text">
-        <div class="name">${ej.nombre}</div>
-        ${ej.detalle ? `<div class="detail">${ej.detalle}</div>` : ''}
+        <div class="name">${escHtml(nombre)}</div>
+        ${detalle ? `<div class="detail">${escHtml(detalle)}</div>` : ''}
       </div>
       ${kcalBadge}
+      <button class="btn-edit-item" data-edit-tipo="${tipo}" data-edit-i="${i}">✏️</button>
     </li>`;
-  });
+  }
 
-  let comHtml = '';
-  plan.comidas.forEach((com, i) => {
-    const kcalBadge = com.kcal ? `<span class="kcal-pill">${com.kcal} kcal</span>` : '';
-    comHtml += `<li class="${reg.comidas[i] ? 'checked' : ''}" data-type="com" data-i="${i}">
-      <div class="check"></div>
-      <div class="item-text">
-        <div class="name">${com.momento}</div>
-        <div class="detail">${com.desc}</div>
-      </div>
-      ${kcalBadge}
-    </li>`;
-  });
-
-  $('ej-list').innerHTML = ejHtml;
-  $('com-list').innerHTML = comHtml;
+  $('ej-list').innerHTML  = plan.ejercicios.map((ej, i) => buildItem('ej', ej, i, reg.ejercicios[i])).join('');
+  $('com-list').innerHTML = plan.comidas.map((com, i)  => buildItem('com', com, i, reg.comidas[i])).join('');
 
   updateCalBalance(plan, reg);
   renderRegistroLibre();
 
-  document.querySelectorAll('[data-type="ej"]').forEach(li => {
+  // Toggle check (skip if in edit mode for that item)
+  document.querySelectorAll('[data-type="ej"]:not(.editing-li)').forEach(li => {
     li.addEventListener('click', () => {
       registro[k].ejercicios[parseInt(li.dataset.i)] ^= true;
       save('registro', registro);
       renderHoy();
     });
   });
-  document.querySelectorAll('[data-type="com"]').forEach(li => {
+  document.querySelectorAll('[data-type="com"]:not(.editing-li)').forEach(li => {
     li.addEventListener('click', () => {
       registro[k].comidas[parseInt(li.dataset.i)] ^= true;
       save('registro', registro);
@@ -301,22 +315,57 @@ function renderHoy() {
     });
   });
 
+  // Edit buttons
+  document.querySelectorAll('[data-edit-tipo]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      editingItem = { tipo: btn.dataset.editTipo, i: parseInt(btn.dataset.editI) };
+      renderHoy();
+      $('edit-ta')?.focus();
+    });
+  });
+
+  // Save edit
+  $('btn-save-edit')?.addEventListener('click', async () => {
+    if (!editingItem) return;
+    const texto = $('edit-ta')?.value.trim();
+    if (!texto) return;
+    if (!geminiKey) { showToast('⚙️ Configura tu API key en Ajustes'); toggleSettings(true); return; }
+    const btn = $('btn-save-edit');
+    btn.disabled = true; btn.textContent = '⏳ Calculando...';
+    try {
+      const kcal = await estimarCalorias(texto, editingItem.tipo);
+      const modKey = editingItem.tipo + '_' + editingItem.i;
+      registro[k].mods[modKey] = { texto, kcal };
+      save('registro', registro);
+      editingItem = null;
+      renderHoy();
+      showToast(`✅ ${kcal} kcal actualizadas`);
+    } catch (err) {
+      showToast('❌ ' + err.message);
+      btn.disabled = false; btn.textContent = '✨ Recalcular con IA';
+    }
+  });
+
+  // Cancel edit
+  $('btn-cancel-edit')?.addEventListener('click', () => { editingItem = null; renderHoy(); });
+
   const btn = $('btn-complete');
-  if (reg.done) {
-    btn.textContent = '✅ ¡Día completado!';
-    btn.classList.add('completed');
-  } else {
-    btn.textContent = '✔ Marcar día como completado';
-    btn.classList.remove('completed');
-  }
+  if (reg.done) { btn.textContent = '✅ ¡Día completado!'; btn.classList.add('completed'); }
+  else { btn.textContent = '✔ Marcar día como completado'; btn.classList.remove('completed'); }
 }
 
 function updateCalBalance(plan, reg) {
   const entradas = reg.entradas || [];
-  const eaten  = plan.comidas.reduce((s, c, i)  => s + (reg.comidas[i]   && c.kcal  ? c.kcal  : 0), 0)
-               + entradas.filter(e => e.tipo === 'com').reduce((s, e) => s + e.kcal, 0);
-  const burned = plan.ejercicios.reduce((s, e, i) => s + (reg.ejercicios[i] && e.kcal ? e.kcal : 0), 0)
-               + entradas.filter(e => e.tipo === 'ej').reduce((s, e) => s + e.kcal, 0);
+  const mods = reg.mods || {};
+  const eaten  = plan.comidas.reduce((s, c, i)  => {
+    if (!reg.comidas[i]) return s;
+    return s + (mods['com_' + i]?.kcal ?? c.kcal ?? 0);
+  }, 0) + entradas.filter(e => e.tipo === 'com').reduce((s, e) => s + e.kcal, 0);
+  const burned = plan.ejercicios.reduce((s, e, i) => {
+    if (!reg.ejercicios[i]) return s;
+    return s + (mods['ej_' + i]?.kcal ?? e.kcal ?? 0);
+  }, 0) + entradas.filter(e => e.tipo === 'ej').reduce((s, e) => s + e.kcal, 0);
   const net    = eaten - burned;
   const deficit = TDEE_ESTIMADO - net;
   const hasData = eaten > 0 || burned > 0;
