@@ -688,6 +688,16 @@ nav button.active { color: var(--accent2); }
   cursor: pointer; transition: opacity .2s; margin-bottom: 12px;
 }
 .btn-ai-calc:disabled { opacity: .6; cursor: not-allowed; }
+
+/* ── Estado inline del botón IA ── */
+.ai-status {
+  font-size: 13px; font-weight: 600; padding: 8px 10px;
+  border-radius: 8px; margin-bottom: 8px; text-align: center;
+  line-height: 1.4;
+}
+.ai-status.warn  { background: rgba(234,179,8,.15); color: var(--yellow); }
+.ai-status.error { background: rgba(239,68,68,.15); color: var(--red); }
+.ai-status.info  { background: rgba(99,102,241,.12); color: var(--accent2); }
 .btn-ai-calc:active { opacity: .85; }
 
 /* ── AI entries list ── */

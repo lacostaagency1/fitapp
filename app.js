@@ -127,17 +127,25 @@ $('ai-type-com').addEventListener('click', () => {
   $('ai-input').placeholder = 'Ej: pizza margarita 2 porciones, bocadillo de jamón, 2 cervezas...';
 });
 
+function setAiStatus(msg, type) {
+  const el = $('ai-status-msg');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'ai-status ' + (type || '');
+}
+
 $('btn-ai-calc').addEventListener('click', async () => {
   const texto = $('ai-input').value.trim();
-  if (!texto) return showToast('Describe la actividad o comida primero');
-  if (!anthropicKey) {
-    showToast('⚙️ Configura tu API key en Ajustes');
+  if (!texto) { setAiStatus('✏️ Escribe primero qué has hecho o comido', 'warn'); return; }
+  if (!geminiKey) {
+    setAiStatus('⚙️ Primero configura tu API key de Gemini (botón ⚙️ arriba a la derecha)', 'warn');
     toggleSettings(true);
     return;
   }
   const btn = $('btn-ai-calc');
   btn.disabled = true;
-  btn.textContent = '⏳ Calculando con IA...';
+  btn.textContent = '⏳ Calculando...';
+  setAiStatus('Consultando a la IA...', 'info');
   try {
     const kcal = await estimarCalorias(texto, aiTipo);
     const k = todayKey();
@@ -147,11 +155,12 @@ $('btn-ai-calc').addEventListener('click', async () => {
     registro[k].entradas.push({ tipo: aiTipo, texto, kcal });
     save('registro', registro);
     $('ai-input').value = '';
+    setAiStatus('');
     renderRegistroLibre();
     updateCalBalance(plan, registro[k]);
-    showToast(`✅ ${kcal} kcal estimadas`);
+    showToast(`✅ ${kcal} kcal añadidas`);
   } catch (err) {
-    showToast('❌ ' + (err.message || 'Error al conectar con la IA'));
+    setAiStatus('❌ ' + (err.message || 'Error al conectar con la IA'), 'error');
   } finally {
     btn.disabled = false;
     btn.textContent = '✨ Calcular calorías con IA';
