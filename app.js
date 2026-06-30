@@ -22,7 +22,7 @@ let pesos = load('pesos', []);
 let customPlan = load('customPlan', {});
 
 // ── API KEY & SETTINGS ─────────────────────────────────
-let anthropicKey = localStorage.getItem('anthropicKey') || '';
+let geminiKey = localStorage.getItem('geminiKey') || '';
 
 function toggleSettings(forceShow) {
   const overlay = $('settings-overlay');
@@ -31,11 +31,11 @@ function toggleSettings(forceShow) {
   overlay.style.display = show ? 'block' : 'none';
   modal.style.display   = show ? 'block' : 'none';
   if (show) {
-    $('key-status').textContent = anthropicKey
-      ? '✅ Clave configurada · ' + anthropicKey.slice(0,8) + '...'
+    $('key-status').textContent = geminiKey
+      ? '✅ Clave configurada · ' + geminiKey.slice(0,6) + '...'
       : '';
     $('api-key-input').value = '';
-    $('api-key-input').placeholder = anthropicKey ? 'Introduce nueva clave para cambiarla' : 'sk-ant-api03-...';
+    $('api-key-input').placeholder = geminiKey ? 'Introduce nueva clave para cambiarla' : 'AIza...';
   }
 }
 $('btn-settings').addEventListener('click', () => toggleSettings(true));
@@ -44,41 +44,33 @@ $('settings-overlay').addEventListener('click', () => toggleSettings(false));
 $('btn-save-key').addEventListener('click', () => {
   const k = $('api-key-input').value.trim();
   if (!k) return showToast('Introduce la clave');
-  anthropicKey = k;
-  localStorage.setItem('anthropicKey', k);
+  geminiKey = k;
+  localStorage.setItem('geminiKey', k);
   showToast('✅ API key guardada');
   toggleSettings(false);
 });
 
-// ── CLAUDE API ─────────────────────────────────────────
-async function callClaude(prompt) {
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+// ── GEMINI API (gratis) ────────────────────────────────
+async function callGemini(prompt) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
+  const resp = await fetch(url, {
     method: 'POST',
-    headers: {
-      'x-api-key': anthropicKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-      'anthropic-dangerous-allow-browser': 'true',
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 50,
-      messages: [{ role: 'user', content: prompt }]
-    })
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
   });
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));
     throw new Error(err.error?.message || `Error ${resp.status}`);
   }
   const data = await resp.json();
-  return data.content[0].text.trim();
+  return data.candidates[0].content.parts[0].text.trim();
 }
 
 async function estimarCalorias(texto, tipo) {
   const prompt = tipo === 'ej'
     ? `Eres un experto en deporte. Una persona de 86 kg ha realizado: "${texto}". ¿Cuántas calorías aproximadas ha quemado? Responde SOLO con un número entero, sin texto ni unidades.`
     : `Eres un nutricionista. Estima las calorías totales de la siguiente ingesta: "${texto}". Responde SOLO con un número entero, sin texto ni unidades.`;
-  const raw = await callClaude(prompt);
+  const raw = await callGemini(prompt);
   const kcal = parseInt(raw.replace(/[^0-9]/g, ''));
   if (isNaN(kcal) || kcal <= 0) throw new Error('La IA no pudo estimar las calorías');
   return kcal;
