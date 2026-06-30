@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="FitApp">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>FitApp</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <h1>💪 FitApp</h1>
+    <p id="header-sub"></p>
+  </header>
+
+  <main>
+
+    <!-- ── INICIO ── -->
+    <section id="sec-inicio" class="section">
+      <div class="streak-row">
+        <div class="streak-box">
+          <div class="num" id="streak-num">0</div>
+          <div class="label">🔥 Racha actual</div>
+        </div>
+        <div class="streak-box">
+          <div class="num" id="total-num">0</div>
+          <div class="label">✅ Días completados</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" id="mini-cal-month"></div>
+        <div class="mini-cal" id="mini-cal"></div>
+        <div class="legend" style="margin-top:12px">
+          <div class="legend-item"><div class="dot" style="background:var(--green)"></div> Completado</div>
+          <div class="legend-item"><div class="dot" style="background:var(--yellow)"></div> Parcial</div>
+          <div class="legend-item"><div class="dot" style="background:var(--red)"></div> Fallado</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── HOY ── -->
+    <section id="sec-hoy" class="section">
+      <div class="card">
+        <div class="plan-header">
+          <div class="emoji" id="plan-emoji"></div>
+          <div style="flex:1">
+            <div class="tipo" id="plan-tipo"></div>
+            <div class="subtipo">Plan de hoy</div>
+          </div>
+        </div>
+
+        <div class="section-label" id="label-ej">🏋️ Ejercicios</div>
+        <ul class="check-list" id="ej-list"></ul>
+
+        <div class="section-label" id="label-com">🥗 Comidas</div>
+        <ul class="check-list" id="com-list"></ul>
+
+        <button class="btn-complete" id="btn-complete">✔ Marcar día como completado</button>
+      </div>
+    </section>
+
+    <!-- ── RUTINA ── -->
+    <section id="sec-rutina" class="section">
+      <div class="card">
+        <div class="card-title">Toca un día para editar su rutina</div>
+        <div class="day-pills" id="day-pills"></div>
+      </div>
+      <div class="card" id="rutina-editor" style="display:none">
+        <div class="plan-header">
+          <div class="emoji" id="rutina-emoji"></div>
+          <div style="flex:1">
+            <div class="tipo" id="rutina-day-name"></div>
+            <div class="subtipo">Editando este día</div>
+          </div>
+        </div>
+        <div id="rutina-edit-ej"></div>
+        <div id="rutina-edit-com"></div>
+        <button class="btn-complete" id="btn-save-rutina">💾 Guardar este día</button>
+        <button class="btn-cancel" id="btn-reset-rutina">↩ Restaurar plan por defecto</button>
+      </div>
+    </section>
+
+    <!-- ── CALENDARIO ── -->
+    <section id="sec-calendario" class="section">
+      <div class="card">
+        <div class="cal-nav">
+          <button id="cal-prev">‹</button>
+          <div class="month-name" id="cal-month-name"></div>
+          <button id="cal-next">›</button>
+        </div>
+        <div class="full-cal" id="full-cal"></div>
+        <div class="legend" style="margin-top:14px">
+          <div class="legend-item"><div class="dot" style="background:var(--green)"></div> Completado</div>
+          <div class="legend-item"><div class="dot" style="background:var(--yellow)"></div> Parcial</div>
+          <div class="legend-item"><div class="dot" style="background:var(--red)"></div> Fallado</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── PROGRESO ── -->
+    <section id="sec-progreso" class="section">
+      <div class="card">
+        <div class="card-title">⚖️ Registro de peso</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Pésate 2-3 veces por semana. La gráfica muestra la media semanal.</p>
+
+        <div class="peso-stats">
+          <div class="peso-stat">
+            <div class="peso-stat-label">Inicial</div>
+            <div class="peso-stat-val">86,1 kg</div>
+          </div>
+          <div class="peso-stat">
+            <div class="peso-stat-label">Actual</div>
+            <div class="peso-stat-val accent" id="peso-actual">—</div>
+          </div>
+          <div class="peso-stat">
+            <div class="peso-stat-label">Objetivo</div>
+            <div class="peso-stat-val green">82 kg</div>
+          </div>
+        </div>
+
+        <div class="progress-wrap" style="margin:14px 0">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:6px">
+            <span>Progreso hacia el objetivo</span>
+            <span id="peso-pct">0%</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="progress-bar"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:4px">
+            <span>86,1 kg</span>
+            <span id="peso-diff" style="font-weight:700"></span>
+            <span>82 kg</span>
+          </div>
+        </div>
+
+        <div class="chart-wrap"><div class="chart" id="chart"></div></div>
+        <div class="input-row" style="margin-top:14px">
+          <div class="field">
+            <label>Añadir peso hoy (kg)</label>
+            <input type="number" id="input-peso" placeholder="ej. 85.5" step="0.1" min="30" max="300">
+          </div>
+          <button class="btn-add" id="btn-add-peso">Guardar</button>
+        </div>
+      </div>
+
+      <div class="card" id="peso-log-card">
+        <div class="card-title">📋 Últimos registros</div>
+        <div id="peso-log"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ── Bottom Nav ── -->
+  <nav>
+    <button id="nav-inicio">
+      <span class="icon">🏠</span>
+      Inicio
+    </button>
+    <button id="nav-hoy">
+      <span class="icon">📋</span>
+      Hoy
+    </button>
+    <button id="nav-rutina">
+      <span class="icon">🗓</span>
+      Rutina
+    </button>
+    <button id="nav-calendario">
+      <span class="icon">📅</span>
+      Registro
+    </button>
+    <button id="nav-progreso">
+      <span class="icon">📊</span>
+      Peso
+    </button>
+  </nav>
+
+</div>
+
+<div id="toast"></div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
