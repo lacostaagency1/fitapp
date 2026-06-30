@@ -18,9 +18,30 @@
 <div id="app">
 
   <header>
-    <h1>💪 FitApp</h1>
-    <p id="header-sub"></p>
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <h1>💪 FitApp</h1>
+        <p id="header-sub"></p>
+      </div>
+      <button id="btn-settings" style="background:none;border:none;font-size:22px;cursor:pointer;padding:4px 8px;color:var(--muted)">⚙️</button>
+    </div>
   </header>
+
+  <!-- Settings modal -->
+  <div id="settings-overlay" class="settings-overlay" style="display:none"></div>
+  <div id="settings-modal" class="settings-modal" style="display:none">
+    <div class="settings-head">
+      <span class="settings-title">⚙️ Ajustes</span>
+      <button id="btn-close-settings" class="btn-close-modal">✕</button>
+    </div>
+    <div class="field" style="margin-bottom:8px">
+      <label>API Key de Anthropic (para calcular calorías con IA)</label>
+      <input type="password" id="api-key-input" placeholder="sk-ant-api03-...">
+    </div>
+    <p class="settings-help">Obtén la clave en <strong>console.anthropic.com</strong> · Se guarda solo en tu dispositivo · Coste: centésimas de € por consulta</p>
+    <button class="btn-complete" id="btn-save-key">💾 Guardar clave</button>
+    <div id="key-status" class="key-status"></div>
+  </div>
 
   <main>
 
@@ -50,6 +71,24 @@
 
     <!-- ── HOY ── -->
     <section id="sec-hoy" class="section">
+
+      <!-- Registro libre con IA -->
+      <div class="card" id="ai-card">
+        <div class="card-title">✨ Registro libre — calcula con IA</div>
+
+        <div class="ai-type-row">
+          <button class="ai-type-btn active" id="ai-type-ej">🔥 Ejercicio</button>
+          <button class="ai-type-btn" id="ai-type-com">🍽 Comida</button>
+        </div>
+
+        <textarea class="ai-textarea" id="ai-input" rows="2"
+          placeholder="Ej: partido de pádel 1h 30min, correr 5 km..."></textarea>
+
+        <button class="btn-ai-calc" id="btn-ai-calc">✨ Calcular calorías con IA</button>
+
+        <div id="ai-entries-list"></div>
+      </div>
+
       <div class="card">
         <div class="plan-header">
           <div class="emoji" id="plan-emoji"></div>
@@ -87,7 +126,7 @@
         <ul class="check-list" id="com-list"></ul>
 
         <button class="btn-complete" id="btn-complete">✔ Marcar día como completado</button>
-      </div>
+      </div><!-- /plan card -->
     </section>
 
     <!-- ── RUTINA ── -->

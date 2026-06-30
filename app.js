@@ -21,6 +21,151 @@ let registro = load('registro', {});
 let pesos = load('pesos', []);
 let customPlan = load('customPlan', {});
 
+// ── API KEY & SETTINGS ─────────────────────────────────
+let anthropicKey = localStorage.getItem('anthropicKey') || '';
+
+function toggleSettings(forceShow) {
+  const overlay = $('settings-overlay');
+  const modal   = $('settings-modal');
+  const show = forceShow !== undefined ? forceShow : overlay.style.display === 'none';
+  overlay.style.display = show ? 'block' : 'none';
+  modal.style.display   = show ? 'block' : 'none';
+  if (show) {
+    $('key-status').textContent = anthropicKey
+      ? '✅ Clave configurada · ' + anthropicKey.slice(0,8) + '...'
+      : '';
+    $('api-key-input').value = '';
+    $('api-key-input').placeholder = anthropicKey ? 'Introduce nueva clave para cambiarla' : 'sk-ant-api03-...';
+  }
+}
+$('btn-settings').addEventListener('click', () => toggleSettings(true));
+$('btn-close-settings').addEventListener('click', () => toggleSettings(false));
+$('settings-overlay').addEventListener('click', () => toggleSettings(false));
+$('btn-save-key').addEventListener('click', () => {
+  const k = $('api-key-input').value.trim();
+  if (!k) return showToast('Introduce la clave');
+  anthropicKey = k;
+  localStorage.setItem('anthropicKey', k);
+  showToast('✅ API key guardada');
+  toggleSettings(false);
+});
+
+// ── CLAUDE API ─────────────────────────────────────────
+async function callClaude(prompt) {
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': anthropicKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+      'anthropic-dangerous-allow-browser': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 50,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error?.message || `Error ${resp.status}`);
+  }
+  const data = await resp.json();
+  return data.content[0].text.trim();
+}
+
+async function estimarCalorias(texto, tipo) {
+  const prompt = tipo === 'ej'
+    ? `Eres un experto en deporte. Una persona de 86 kg ha realizado: "${texto}". ¿Cuántas calorías aproximadas ha quemado? Responde SOLO con un número entero, sin texto ni unidades.`
+    : `Eres un nutricionista. Estima las calorías totales de la siguiente ingesta: "${texto}". Responde SOLO con un número entero, sin texto ni unidades.`;
+  const raw = await callClaude(prompt);
+  const kcal = parseInt(raw.replace(/[^0-9]/g, ''));
+  if (isNaN(kcal) || kcal <= 0) throw new Error('La IA no pudo estimar las calorías');
+  return kcal;
+}
+
+// ── REGISTRO LIBRE ─────────────────────────────────────
+let aiTipo = 'ej';
+
+function renderRegistroLibre() {
+  const k = todayKey();
+  const entradas = registro[k]?.entradas || [];
+  const list = $('ai-entries-list');
+  if (entradas.length === 0) {
+    list.innerHTML = '';
+    return;
+  }
+  let html = '<div class="ai-entries">';
+  entradas.forEach((e, i) => {
+    const icon = e.tipo === 'ej' ? '🔥' : '🍽';
+    const sign = e.tipo === 'ej' ? '−' : '+';
+    const cls  = e.tipo === 'ej' ? 'green' : 'kcal-red';
+    html += `<div class="ai-entry">
+      <span class="ai-entry-icon">${icon}</span>
+      <span class="ai-entry-texto">${escHtml(e.texto)}</span>
+      <span class="ai-entry-kcal ${cls}">${sign}${e.kcal} kcal</span>
+      <button class="btn-del-entry" data-entry-i="${i}">✕</button>
+    </div>`;
+  });
+  html += '</div>';
+  list.innerHTML = html;
+
+  document.querySelectorAll('[data-entry-i]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const k2 = todayKey();
+      registro[k2].entradas.splice(parseInt(btn.dataset.entryI), 1);
+      save('registro', registro);
+      const plan = getPlan(DAYS_ES[today().getDay()]);
+      renderRegistroLibre();
+      updateCalBalance(plan, registro[k2]);
+    });
+  });
+}
+
+$('ai-type-ej').addEventListener('click', () => {
+  aiTipo = 'ej';
+  $('ai-type-ej').classList.add('active');
+  $('ai-type-com').classList.remove('active');
+  $('ai-input').placeholder = 'Ej: partido de pádel 1h 30min, correr 5 km, bici 45 min...';
+});
+$('ai-type-com').addEventListener('click', () => {
+  aiTipo = 'com';
+  $('ai-type-com').classList.add('active');
+  $('ai-type-ej').classList.remove('active');
+  $('ai-input').placeholder = 'Ej: pizza margarita 2 porciones, bocadillo de jamón, 2 cervezas...';
+});
+
+$('btn-ai-calc').addEventListener('click', async () => {
+  const texto = $('ai-input').value.trim();
+  if (!texto) return showToast('Describe la actividad o comida primero');
+  if (!anthropicKey) {
+    showToast('⚙️ Configura tu API key en Ajustes');
+    toggleSettings(true);
+    return;
+  }
+  const btn = $('btn-ai-calc');
+  btn.disabled = true;
+  btn.textContent = '⏳ Calculando con IA...';
+  try {
+    const kcal = await estimarCalorias(texto, aiTipo);
+    const k = todayKey();
+    const plan = getPlan(DAYS_ES[today().getDay()]);
+    if (!registro[k]) registro[k] = { ejercicios: plan.ejercicios.map(() => false), comidas: plan.comidas.map(() => false), done: false, entradas: [] };
+    if (!registro[k].entradas) registro[k].entradas = [];
+    registro[k].entradas.push({ tipo: aiTipo, texto, kcal });
+    save('registro', registro);
+    $('ai-input').value = '';
+    renderRegistroLibre();
+    updateCalBalance(plan, registro[k]);
+    showToast(`✅ ${kcal} kcal estimadas`);
+  } catch (err) {
+    showToast('❌ ' + (err.message || 'Error al conectar con la IA'));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✨ Calcular calorías con IA';
+  }
+});
+
 function getPlan(dayName) {
   return customPlan[dayName] || PLAN[dayName];
 }
@@ -147,6 +292,7 @@ function renderHoy() {
   $('com-list').innerHTML = comHtml;
 
   updateCalBalance(plan, reg);
+  renderRegistroLibre();
 
   document.querySelectorAll('[data-type="ej"]').forEach(li => {
     li.addEventListener('click', () => {
@@ -174,8 +320,11 @@ function renderHoy() {
 }
 
 function updateCalBalance(plan, reg) {
-  const eaten  = plan.comidas.reduce((s, c, i)  => s + (reg.comidas[i]   && c.kcal  ? c.kcal  : 0), 0);
-  const burned = plan.ejercicios.reduce((s, e, i) => s + (reg.ejercicios[i] && e.kcal ? e.kcal : 0), 0);
+  const entradas = reg.entradas || [];
+  const eaten  = plan.comidas.reduce((s, c, i)  => s + (reg.comidas[i]   && c.kcal  ? c.kcal  : 0), 0)
+               + entradas.filter(e => e.tipo === 'com').reduce((s, e) => s + e.kcal, 0);
+  const burned = plan.ejercicios.reduce((s, e, i) => s + (reg.ejercicios[i] && e.kcal ? e.kcal : 0), 0)
+               + entradas.filter(e => e.tipo === 'ej').reduce((s, e) => s + e.kcal, 0);
   const net    = eaten - burned;
   const deficit = TDEE_ESTIMADO - net;
   const hasData = eaten > 0 || burned > 0;
